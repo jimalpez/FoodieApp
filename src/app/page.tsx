@@ -1,103 +1,176 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+import { useState } from "react";
+import { Header } from "@/components/layout/header";
+import { CategoryTabs } from "@/components/food/category-tabs";
+import { FoodGrid } from "@/components/food/food-grid";
+import { Cart } from "@/components/cart/cart";
+import { CheckoutDialog } from "@/components/cart/checkout-dialog";
+import { PaymentDialog } from "@/components/cart/payment-dialog";
+import { OrderDialog } from "@/components/cart/order-dialog";
+import { ProfileDialog } from "@/components/auth/profile-dialog";
+import { useAuth } from "@/context/auth-context";
+import { AuthDialog } from "@/components/auth/auth-dialog";
+import { useCart } from "@/hooks/use-cart";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import type { CheckoutData } from "@/lib/types";
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+export default function FoodOrderingApp() {
+  const { user, isLoading } = useAuth();
+  const cart = useCart();
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("popular");
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-foreground mb-4">
+              🍕 FoodieApp
+            </h1>
+            <p className="text-lg text-muted-foreground mb-2">
+              Delicious Food Delivered
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Sign in to start ordering your favorite meals
+            </p>
+          </div>
+
+          <Button
+            onClick={() => setAuthDialogOpen(true)}
+            size="lg"
+            className="w-full">
+            Get Started
+          </Button>
+
+          <AuthDialog
+            isOpen={authDialogOpen}
+            onClose={() => setAuthDialogOpen(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const handleProceedToPayment = (data: CheckoutData) => {
+    setCheckoutData(data);
+    setCheckoutDialogOpen(false);
+    if (data.paymentMethod === "card") {
+      setPaymentDialogOpen(true);
+    } else {
+      setOrderDialogOpen(true);
+    }
+  };
+
+  const handlePaymentComplete = () => {
+    setPaymentDialogOpen(false);
+    setOrderDialogOpen(true);
+  };
+
+  const handleOrderComplete = () => {
+    cart.clearCart();
+    setOrderDialogOpen(false);
+    setCheckoutData(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header
+        cartItemCount={cart.totalItems}
+        onCartClick={() => setIsCartOpen(true)}
+        onProfileClick={() => setIsProfileOpen(true)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
+
+      <main className="container mx-auto px-4 py-6 pb-20">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Delicious Food Delivered
+          </h1>
+          <p className="text-muted-foreground">
+            Order your favorite meals from the best restaurants
+          </p>
+        </div>
+
+        <CategoryTabs
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+        />
+
+        <FoodGrid
+          category={selectedCategory}
+          onAddToCart={cart.addItem}
+          searchQuery={searchQuery}
+        />
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+      <Cart
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        items={cart.items}
+        onUpdateQuantity={cart.updateQuantity}
+        onRemoveItem={cart.removeItem}
+        subtotal={cart.subtotal}
+        deliveryFee={cart.deliveryFee}
+        tax={cart.tax}
+        total={cart.total}
+        onCheckout={() => {
+          setIsCartOpen(false);
+          setCheckoutDialogOpen(true);
+        }}
+      />
+
+      <CheckoutDialog
+        isOpen={checkoutDialogOpen}
+        onClose={() => setCheckoutDialogOpen(false)}
+        items={cart.items}
+        subtotal={cart.subtotal}
+        deliveryFee={cart.deliveryFee}
+        tax={cart.tax}
+        total={cart.total}
+        onProceedToPayment={handleProceedToPayment}
+      />
+
+      <PaymentDialog
+        isOpen={paymentDialogOpen}
+        onClose={() => setPaymentDialogOpen(false)}
+        checkoutData={checkoutData}
+        onPaymentComplete={handlePaymentComplete}
+      />
+
+      <OrderDialog
+        isOpen={orderDialogOpen}
+        onClose={() => setOrderDialogOpen(false)}
+        items={cart.items}
+        total={checkoutData?.total || cart.total}
+        onOrderComplete={handleOrderComplete}
+      />
+
+      <ProfileDialog
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </div>
   );
 }
